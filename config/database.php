@@ -3,8 +3,11 @@ define('DB_HOST',    'localhost');
 define('DB_NAME',    'piatmove');
 define('DB_USER',    'root');
 define('DB_PASS',    '');
-define('JWT_SECRET', 'piatmove-secret-change-in-production');
-define('JWT_EXPIRY', 60 * 60 * 24 * 7); // 7 days
+$_jwt_secret = getenv('JWT_SECRET') ?: (file_exists(__DIR__ . '/../.env.secret') ? trim(file_get_contents(__DIR__ . '/../.env.secret')) : null);
+if (!$_jwt_secret) die(json_encode(['success'=>false,'data'=>null,'message'=>'Server misconfigured: JWT_SECRET not set']));
+define('JWT_SECRET', $_jwt_secret);
+unset($_jwt_secret);
+define('JWT_EXPIRY', 60 * 60 * 24); // 24 hours
 
 function get_db(): PDO {
     static $pdo = null;

@@ -39,13 +39,11 @@ if ($method === 'GET' && $action === 'requests') {
 
 } elseif ($method === 'POST' && $action === 'accept' && $id) {
 
-    // Ensure not already taken
-    $stmt = $db->prepare("SELECT id FROM bookings WHERE id = ? AND status = 'pending'");
-    $stmt->execute([$id]);
-    if (!$stmt->fetch()) json_error('Booking not found or no longer available', 404);
-
-    $db->prepare("UPDATE bookings SET status = 'accepted', driver_id = ? WHERE id = ?")
-       ->execute([$user['id'], $id]);
+    $stmt = $db->prepare(
+        "UPDATE bookings SET status = 'accepted', driver_id = ? WHERE id = ? AND status = 'pending'"
+    );
+    $stmt->execute([$user['id'], $id]);
+    if ($stmt->rowCount() === 0) json_error('Booking not found or no longer available', 404);
     json_success(null, 'Ride accepted');
 
 } elseif ($method === 'POST' && $action === 'reject' && $id) {
@@ -79,9 +77,11 @@ if ($method === 'GET' && $action === 'requests') {
 } elseif ($method === 'PUT' && $action === 'location') {
 
     $body = get_body();
-    $lat  = $body['lat'] ?? null;
-    $lng  = $body['lng'] ?? null;
-    if ($lat === null || $lng === null) json_error('lat and lng are required');
+    $lat  = filter_var($body['lat'] ?? null, FILTER_VALIDATE_FLOAT);
+    $lng  = filter_var($body['lng'] ?? null, FILTER_VALIDATE_FLOAT);
+    if ($lat === false || $lng === false || $lat < -90 || $lat > 90 || $lng < -180 || $lng > 180) {
+        json_error('Valid lat (-90 to 90) and lng (-180 to 180) are required');
+    }
 
     $db->prepare('UPDATE driver_info SET current_lat = ?, current_lng = ? WHERE user_id = ?')
        ->execute([$lat, $lng, $user['id']]);

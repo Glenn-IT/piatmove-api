@@ -20,6 +20,12 @@ if ($method === 'POST' && $action === 'register') {
     if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
         json_error('Invalid email address');
     }
+    if (strlen($pass) < 8) {
+        json_error('Password must be at least 8 characters');
+    }
+    if (!preg_match('/^\+?[0-9\s\-]{7,15}$/', $phone)) {
+        json_error('Invalid phone number format');
+    }
     if (!in_array($role, ['passenger', 'driver'], true)) {
         json_error('role must be passenger or driver');
     }

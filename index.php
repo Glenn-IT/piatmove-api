@@ -1,4 +1,10 @@
 <?php
+set_exception_handler(function (Throwable $e) {
+    http_response_code(500);
+    echo json_encode(['success' => false, 'data' => null, 'message' => 'Internal server error']);
+    exit;
+});
+
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/helpers/response.php';
 require_once __DIR__ . '/middleware/auth.php';

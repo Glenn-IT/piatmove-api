@@ -1,23 +1,36 @@
 # PiatMove — Security & Code Audit Report
 
-**Date:** 2026-06-26  
+**Audit date:** 2026-06-26  
+**Fixed date:** 2026-06-26  
 **Scope:** `piatmove-api/` (REST API) + `PiatMoveAdmin/` (Admin Panel)  
 **Stack:** PHP 8, MySQL, no framework, custom JWT, PDO  
 
 ---
 
-## Priority Fix Order
+## Fix Status
 
-1. **C-1** — JWT secret (forgeable right now)
-2. **H-1** — CSRF on admin forms (destructive actions unprotected)
-3. **C-4** — Session fixation on login
-4. **C-2 / C-3** — SQL interpolation in filters
-5. **H-2** — Root DB credentials
-6. **H-3** — Booking accept race condition
-7. **H-4** — No brute-force protection
-8. **M-8** — Global exception handler
-9. **M-6** — JWT expiry / revocation
-10. Remaining medium/low items
+| # | Issue | Status |
+|---|---|---|
+| C-1 | Hardcoded JWT secret | ✅ Fixed — reads from `JWT_SECRET` env var or `.env.secret` file; expiry reduced to 24h |
+| C-2 | SQL injection in drivers filter | ✅ Fixed — conditional prepared statement |
+| C-3 | SQL injection in bookings filter | ✅ Fixed — conditional prepared statement |
+| C-4 | Session fixation on login | ✅ Fixed — `session_regenerate_id(true)` added |
+| H-1 | No CSRF on admin forms | ✅ Fixed — `csrf_field()` / `csrf_verify()` in auth.php, wired to users + drivers forms |
+| H-2 | Root DB credentials | ⚠️ Manual — create a dedicated MySQL user (see H-2 section below) |
+| H-3 | Booking accept race condition | ✅ Fixed — single atomic UPDATE with rowCount check |
+| H-4 | No brute-force protection | ⚠️ Manual — requires `login_attempts` table implementation |
+| H-5 | No lat/lng validation | ✅ Fixed — range validation with FILTER_VALIDATE_FLOAT |
+| M-1 | Wildcard CORS | ⚠️ Intentional for mobile API — document if keeping |
+| M-2 | No try/catch on DB writes | ⚠️ Low risk on local; add before production deploy |
+| M-3 | No minimum password length | ✅ Fixed — 8-char minimum enforced on registration |
+| M-4 | Phone not validated | ✅ Fixed — regex format check on registration |
+| M-5 | XSS in status_badge() | ✅ Fixed — htmlspecialchars on both class and content |
+| M-6 | JWT no revocation | ✅ Partially fixed — expiry reduced to 24h |
+| M-7 | No pagination | ⚠️ Add before production deploy |
+| M-8 | No global exception handler | ✅ Fixed — set_exception_handler at top of index.php |
+| L-1 | Dead $msg_type variable | ✅ Fixed — wired to alert class in users.php |
+| L-5 | Logout doesn't clear cookie | ✅ Fixed — $_SESSION cleared + cookie expired |
+| L-2, L-3, L-4, L-6 | Low priority items | ⚠️ Address before production deploy |
 
 ---
 
