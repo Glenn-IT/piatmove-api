@@ -28,6 +28,8 @@ $segments = $uri !== '' ? explode('/', $uri) : [];
 $root = $segments[0] ?? '';
 
 switch ($root) {
+    case '':
+    case 'health':    json_success(['status' => 'online', 'service' => 'PiatMove API']); break;
     case 'auth':      require __DIR__ . '/routes/auth.php';      break;
     case 'bookings':  require __DIR__ . '/routes/bookings.php';  break;
     case 'driver':    require __DIR__ . '/routes/driver.php';    break;

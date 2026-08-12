@@ -80,7 +80,7 @@ if ($method === 'POST' && $action === 'register') {
     }
 
     $db   = get_db();
-    $stmt = $db->prepare('SELECT id, password, role, status FROM users WHERE email = ?');
+    $stmt = $db->prepare('SELECT id, name, phone, password, role, status FROM users WHERE email = ?');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
 
@@ -93,7 +93,13 @@ if ($method === 'POST' && $action === 'register') {
 
     $token = jwt_create(['id' => (int)$user['id'], 'role' => $user['role'], 'type' => 'user']);
     json_success(
-        ['token' => $token, 'user_id' => (int)$user['id'], 'role' => $user['role']],
+        [
+            'token'   => $token,
+            'user_id' => (int)$user['id'],
+            'role'    => $user['role'],
+            'name'    => $user['name'],
+            'phone'   => $user['phone'],
+        ],
         'Login successful'
     );
 
