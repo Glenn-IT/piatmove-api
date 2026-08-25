@@ -22,10 +22,17 @@ if ($method === 'POST' && $id === null) {
         }
     }
 
-    $db   = get_db();
+    $passenger_count = isset($body['passenger_count']) ? (int)$body['passenger_count'] : 1;
+    if ($passenger_count < 1) $passenger_count = 1;
+    if ($passenger_count > 5) $passenger_count = 5;
+
+    // Regulated fare: ₱20 per passenger
+    $fare = isset($body['fare']) && is_numeric($body['fare']) ? (float)$body['fare'] : ($passenger_count * 20.00);
+
+    $db = get_db();
     $stmt = $db->prepare(
-        'INSERT INTO bookings (passenger_id, pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng)
-         VALUES (?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO bookings (passenger_id, pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng, passenger_count, fare)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     $stmt->execute([
         $user['id'],
@@ -35,8 +42,11 @@ if ($method === 'POST' && $id === null) {
         $body['dropoff_address'],
         $body['dropoff_lat'],
         $body['dropoff_lng'],
+        $passenger_count,
+        $fare,
     ]);
-    json_success(['booking_id' => (int)$db->lastInsertId()], 'Booking created', 201);
+
+    json_success(['booking_id' => (int)$db->lastInsertId(), 'passenger_count' => $passenger_count, 'fare' => $fare], 'Booking created', 201);
 
 // GET /bookings
 } elseif ($method === 'GET' && $id === null) {
