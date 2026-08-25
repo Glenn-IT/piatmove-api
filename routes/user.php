@@ -48,21 +48,26 @@ if ($method === 'GET' && ($action === 'profile' || $action === '')) {
         json_error('Invalid image format (JPG, PNG, WebP allowed)');
     }
 
-    $adminUploadRoot = __DIR__ . '/../../PiatMoveAdmin/uploads/profiles';
-    $apiUploadRoot   = __DIR__ . '/../uploads/profiles';
-    $uploadTarget    = is_dir(dirname($adminUploadRoot)) ? $adminUploadRoot : $apiUploadRoot;
-    if (!is_dir($uploadTarget)) {
-        @mkdir($uploadTarget, 0755, true);
+    // Primary target: api/uploads/profiles
+    $apiUploadDir = __DIR__ . '/../uploads/profiles';
+    if (!is_dir($apiUploadDir)) {
+        @mkdir($apiUploadDir, 0755, true);
     }
 
     $filename = 'profile_' . $user['id'] . '_' . bin2hex(random_bytes(4)) . '.' . $ext;
-    $dest     = $uploadTarget . '/' . $filename;
+    $dest     = $apiUploadDir . '/' . $filename;
 
     if (move_uploaded_file($_FILES['photo']['tmp_name'], $dest)) {
         $relPath = 'uploads/profiles/' . $filename;
-        if ($uploadTarget === $adminUploadRoot) {
-            @mkdir($apiUploadRoot, 0755, true);
-            @copy($dest, $apiUploadRoot . '/' . $filename);
+
+        // Also copy to admin uploads directories if they exist (Hostinger / local)
+        $adminDir1 = __DIR__ . '/../../admin/uploads/profiles';
+        $adminDir2 = __DIR__ . '/../../PiatMoveAdmin/uploads/profiles';
+        foreach ([$adminDir1, $adminDir2] as $admDir) {
+            if (is_dir(dirname(dirname($admDir)))) {
+                @mkdir($admDir, 0755, true);
+                @copy($dest, $admDir . '/' . $filename);
+            }
         }
 
         $db->prepare('UPDATE users SET photo_path = ? WHERE id = ?')->execute([$relPath, $user['id']]);
