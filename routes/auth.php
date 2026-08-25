@@ -49,15 +49,54 @@ if ($method === 'POST' && $action === 'register') {
         if ($role === 'driver') {
             $license      = trim($body['license_no']    ?? '');
             $vehicle_no   = trim($body['vehicle_no']    ?? '');
-            $vehicle_type = trim($body['vehicle_type']  ?? '');
-            if (!$license || !$vehicle_no || !$vehicle_type) {
+            $vehicle_type = trim($body['vehicle_type']  ?? 'Tricycle');
+            $barangay     = trim($body['barangay']      ?? 'Poblacion I');
+            if (!$license || !$vehicle_no) {
                 $db->rollBack();
-                json_error('Drivers must include license_no, vehicle_no and vehicle_type');
+                json_error('Drivers must include license_no and vehicle_no');
             }
+
+            $plate_proof_path    = null;
+            $license_proof_path  = null;
+            $photo_path          = null;
+            $tricycle_photo_path = null;
+
+            $adminUploadRoot = __DIR__ . '/../../PiatMoveAdmin/uploads/drivers';
+            $apiUploadRoot   = __DIR__ . '/../uploads/drivers';
+            $uploadTarget    = is_dir(dirname($adminUploadRoot)) ? $adminUploadRoot : $apiUploadRoot;
+            if (!is_dir($uploadTarget)) {
+                @mkdir($uploadTarget, 0755, true);
+            }
+
+            $uploadMap = [
+                'plate_proof'    => &$plate_proof_path,
+                'license_proof'  => &$license_proof_path,
+                'driver_photo'   => &$photo_path,
+                'tricycle_photo' => &$tricycle_photo_path,
+            ];
+
+            foreach ($uploadMap as $field => &$pathRef) {
+                if (!empty($_FILES[$field]) && $_FILES[$field]['error'] === UPLOAD_ERR_OK) {
+                    $ext = strtolower(pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION));
+                    if (in_array($ext, ['jpg', 'jpeg', 'png', 'pdf', 'webp'], true)) {
+                        $filename = bin2hex(random_bytes(8)) . '.' . $ext;
+                        $dest = $uploadTarget . '/' . $filename;
+                        if (move_uploaded_file($_FILES[$field]['tmp_name'], $dest)) {
+                            $pathRef = 'uploads/drivers/' . $filename;
+                            if ($uploadTarget === $adminUploadRoot) {
+                                @mkdir($apiUploadRoot, 0755, true);
+                                @copy($dest, $apiUploadRoot . '/' . $filename);
+                            }
+                        }
+                    }
+                }
+            }
+
             $stmt = $db->prepare(
-                'INSERT INTO driver_info (user_id, license_no, vehicle_no, vehicle_type) VALUES (?, ?, ?, ?)'
+                'INSERT INTO driver_info (user_id, license_no, vehicle_no, vehicle_type, barangay, plate_proof_path, license_proof_path, photo_path, tricycle_photo_path, approval_status)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
-            $stmt->execute([$user_id, $license, $vehicle_no, $vehicle_type]);
+            $stmt->execute([$user_id, $license, $vehicle_no, $vehicle_type, $barangay, $plate_proof_path, $license_proof_path, $photo_path, $tricycle_photo_path, 'pending']);
         }
 
         $db->commit();
@@ -67,7 +106,7 @@ if ($method === 'POST' && $action === 'register') {
     }
 
     $token = jwt_create(['id' => $user_id, 'role' => $role, 'type' => 'user']);
-    json_success(['token' => $token, 'user_id' => $user_id, 'role' => $role], 'Registered successfully', 201);
+    json_success(['token' => $token, 'user_id' => $user_id, 'role' => $role, 'approval_status' => ($role === 'driver' ? 'pending' : 'approved')], 'Registered successfully', 201);
 
 } elseif ($method === 'POST' && $action === 'login') {
 
@@ -80,7 +119,7 @@ if ($method === 'POST' && $action === 'register') {
     }
 
     $db   = get_db();
-    $stmt = $db->prepare('SELECT id, name, phone, password, role, status FROM users WHERE email = ?');
+    $stmt = $db->prepare('SELECT u.id, u.name, u.phone, u.password, u.role, u.status, d.approval_status FROM users u LEFT JOIN driver_info d ON d.user_id = u.id WHERE u.email = ?');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
 
@@ -94,11 +133,12 @@ if ($method === 'POST' && $action === 'register') {
     $token = jwt_create(['id' => (int)$user['id'], 'role' => $user['role'], 'type' => 'user']);
     json_success(
         [
-            'token'   => $token,
-            'user_id' => (int)$user['id'],
-            'role'    => $user['role'],
-            'name'    => $user['name'],
-            'phone'   => $user['phone'],
+            'token'           => $token,
+            'user_id'         => (int)$user['id'],
+            'role'            => $user['role'],
+            'name'            => $user['name'],
+            'phone'           => $user['phone'],
+            'approval_status' => $user['approval_status'] ?? 'approved',
         ],
         'Login successful'
     );

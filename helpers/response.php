@@ -12,6 +12,9 @@ function json_error(string $message = 'Error', int $code = 400): void {
 }
 
 function get_body(): array {
+    if (!empty($_POST)) {
+        return $_POST;
+    }
     $raw = file_get_contents('php://input');
     $body = json_decode($raw, true);
     return is_array($body) ? $body : [];

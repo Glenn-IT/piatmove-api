@@ -45,10 +45,26 @@ if ($method === 'POST' && $id === null) {
     $db   = get_db();
 
     if ($user['role'] === 'passenger') {
-        $stmt = $db->prepare('SELECT * FROM bookings WHERE passenger_id = ? ORDER BY created_at DESC');
+        $stmt = $db->prepare(
+            'SELECT b.*,
+                    d.name  AS driver_name,
+                    d.phone AS driver_phone
+             FROM bookings b
+             LEFT JOIN users d ON d.id = b.driver_id
+             WHERE b.passenger_id = ?
+             ORDER BY b.created_at DESC'
+        );
         $stmt->execute([$user['id']]);
     } elseif ($user['role'] === 'driver') {
-        $stmt = $db->prepare('SELECT * FROM bookings WHERE driver_id = ? ORDER BY created_at DESC');
+        $stmt = $db->prepare(
+            'SELECT b.*,
+                    p.name  AS passenger_name,
+                    p.phone AS passenger_phone
+             FROM bookings b
+             JOIN users p ON p.id = b.passenger_id
+             WHERE b.driver_id = ?
+             ORDER BY b.created_at DESC'
+        );
         $stmt->execute([$user['id']]);
     } else {
         json_error('Forbidden', 403);
@@ -61,7 +77,17 @@ if ($method === 'POST' && $id === null) {
 
     $user = require_auth();
     $db   = get_db();
-    $stmt = $db->prepare('SELECT * FROM bookings WHERE id = ?');
+    $stmt = $db->prepare(
+        'SELECT b.*,
+                p.name  AS passenger_name,
+                p.phone AS passenger_phone,
+                d.name  AS driver_name,
+                d.phone AS driver_phone
+         FROM bookings b
+         JOIN users p  ON p.id = b.passenger_id
+         LEFT JOIN users d ON d.id = b.driver_id
+         WHERE b.id = ?'
+    );
     $stmt->execute([$id]);
     $booking = $stmt->fetch();
 

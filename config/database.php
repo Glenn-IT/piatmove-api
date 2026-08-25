@@ -1,8 +1,8 @@
 <?php
-define('DB_HOST',    'localhost');
-define('DB_NAME',    'piatmove');
-define('DB_USER',    'root');
-define('DB_PASS',    '');
+define('DB_HOST',    getenv('DB_HOST') ?: 'localhost');
+define('DB_NAME',    getenv('DB_NAME') ?: 'piatmove');
+define('DB_USER',    getenv('DB_USER') ?: 'root');
+define('DB_PASS',    getenv('DB_PASS') !== false ? getenv('DB_PASS') : '');
 $_jwt_secret = getenv('JWT_SECRET') ?: (file_exists(__DIR__ . '/../.env.secret') ? trim(file_get_contents(__DIR__ . '/../.env.secret')) : null);
 if (!$_jwt_secret) die(json_encode(['success'=>false,'data'=>null,'message'=>'Server misconfigured: JWT_SECRET not set']));
 define('JWT_SECRET', $_jwt_secret);
