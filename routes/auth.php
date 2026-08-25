@@ -118,6 +118,7 @@ if ($method === 'POST' && $action === 'register') {
         json_error('Email and password are required');
     }
 
+    $db   = get_db();
     $stmt = $db->prepare('SELECT u.id, u.name, u.email, u.phone, u.password, u.role, u.status, u.photo_path, d.approval_status FROM users u LEFT JOIN driver_info d ON d.user_id = u.id WHERE u.email = ?');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
