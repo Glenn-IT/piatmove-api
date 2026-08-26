@@ -82,7 +82,42 @@ if ($method === 'GET' && $action === 'profile') {
         );
         $stmt->execute([$user['id'], $id]);
         if ($stmt->rowCount() === 0) json_error('Booking not found or no longer available', 404);
+
+        // Fetch passenger & driver details for email notification
+        try {
+            $stmt = $db->prepare(
+                'SELECT b.pickup_address, b.dropoff_address, b.fare,
+                        p.name AS passenger_name, p.email AS passenger_email,
+                        u.name AS driver_name, u.phone AS driver_phone,
+                        d.vehicle_no
+                 FROM bookings b
+                 JOIN users p ON p.id = b.passenger_id
+                 JOIN users u ON u.id = ?
+                 LEFT JOIN driver_info d ON d.user_id = u.id
+                 WHERE b.id = ?'
+            );
+            $stmt->execute([$user['id'], $id]);
+            $details = $stmt->fetch();
+
+            if ($details && !empty($details['passenger_email'])) {
+                require_once __DIR__ . '/../helpers/mail.php';
+                send_booking_accepted_email(
+                    $details['passenger_email'],
+                    $details['passenger_name'] ?? 'Passenger',
+                    $details['driver_name']    ?? 'Driver',
+                    $details['driver_phone']   ?? '',
+                    $details['vehicle_no']     ?? 'Tricycle',
+                    $details['pickup_address'] ?? '',
+                    $details['dropoff_address'] ?? '',
+                    (float)($details['fare'] ?? 0)
+                );
+            }
+        } catch (Throwable $e) {
+            error_log('[Driver Accept Email Error] ' . $e->getMessage());
+        }
+
         json_success(null, 'Ride accepted');
+
 
     } elseif ($method === 'POST' && $action === 'reject' && $id) {
 

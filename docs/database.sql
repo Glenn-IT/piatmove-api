@@ -88,6 +88,19 @@ CREATE TABLE admins (
 ) ENGINE=InnoDB;
 
 -- --------------------------------------------------------
+-- Table: password_resets
+-- Temporary 6-digit OTP verification codes for forgot password
+-- --------------------------------------------------------
+CREATE TABLE password_resets (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    email       VARCHAR(150) NOT NULL,
+    otp         VARCHAR(10)  NOT NULL,
+    expires_at  DATETIME     NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_email_otp (email, otp)
+) ENGINE=InnoDB;
+
+-- --------------------------------------------------------
 -- Indexes for common query patterns
 -- --------------------------------------------------------
 CREATE INDEX idx_bookings_passenger ON bookings(passenger_id);
@@ -95,3 +108,4 @@ CREATE INDEX idx_bookings_driver    ON bookings(driver_id);
 CREATE INDEX idx_bookings_status    ON bookings(status);
 CREATE INDEX idx_users_role         ON users(role);
 CREATE INDEX idx_users_status       ON users(status);
+

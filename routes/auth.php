@@ -145,6 +145,95 @@ if ($method === 'POST' && $action === 'register') {
         'Login successful'
     );
 
+} elseif ($method === 'POST' && in_array($action, ['forgot-password', 'forgot_password'], true)) {
+
+    $body  = get_body();
+    $email = trim($body['email'] ?? '');
+
+    if (!$email) {
+        json_error('Email is required');
+    }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        json_error('Invalid email address');
+    }
+
+    $db   = get_db();
+    $stmt = $db->prepare('SELECT id, name, email FROM users WHERE email = ?');
+    $stmt->execute([$email]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        // Return 404 for clarity or error message
+        json_error('No account registered with this email address', 404);
+    }
+
+    // Generate 6-digit numeric OTP
+    $otp = sprintf('%06d', mt_rand(100000, 999999));
+
+    // Store OTP with 15-minute expiration
+    $db->prepare('DELETE FROM password_resets WHERE email = ?')->execute([$email]);
+    $stmt = $db->prepare('INSERT INTO password_resets (email, otp, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE))');
+    $stmt->execute([$email, $otp]);
+
+    // Send email notification
+    require_once __DIR__ . '/../helpers/mail.php';
+    $mailResult = send_password_reset_email($user['email'], $user['name'], $otp);
+
+    json_success(
+        ['email' => $email],
+        'A 6-digit verification code has been sent to your email.'
+    );
+
+} elseif ($method === 'POST' && in_array($action, ['verify-otp', 'verify_otp'], true)) {
+
+    $body  = get_body();
+    $email = trim($body['email'] ?? '');
+    $otp   = trim($body['otp']   ?? '');
+
+    if (!$email || !$otp) {
+        json_error('Email and OTP code are required');
+    }
+
+    $db   = get_db();
+    $stmt = $db->prepare('SELECT id FROM password_resets WHERE email = ? AND otp = ? AND expires_at >= NOW() ORDER BY id DESC LIMIT 1');
+    $stmt->execute([$email, $otp]);
+    if (!$stmt->fetch()) {
+        json_error('Invalid or expired verification code', 400);
+    }
+
+    json_success(null, 'Verification code is valid');
+
+} elseif ($method === 'POST' && in_array($action, ['reset-password', 'reset_password'], true)) {
+
+    $body     = get_body();
+    $email    = trim($body['email']        ?? '');
+    $otp      = trim($body['otp']          ?? '');
+    $password =      $body['password']     ?? ($body['new_password'] ?? '');
+
+    if (!$email || !$otp || !$password) {
+        json_error('Email, OTP code, and new password are required');
+    }
+    if (strlen($password) < 8) {
+        json_error('Password must be at least 8 characters');
+    }
+
+    $db   = get_db();
+    $stmt = $db->prepare('SELECT id FROM password_resets WHERE email = ? AND otp = ? AND expires_at >= NOW() ORDER BY id DESC LIMIT 1');
+    $stmt->execute([$email, $otp]);
+    if (!$stmt->fetch()) {
+        json_error('Invalid or expired verification code. Please request a new one.', 400);
+    }
+
+    // Update password
+    $stmt = $db->prepare('UPDATE users SET password = ? WHERE email = ?');
+    $stmt->execute([password_hash($password, PASSWORD_DEFAULT), $email]);
+
+    // Clean up used reset token
+    $db->prepare('DELETE FROM password_resets WHERE email = ?')->execute([$email]);
+
+    json_success(null, 'Password has been reset successfully. You can now log in with your new password.');
+
 } else {
     json_error('Not found', 404);
 }
+
