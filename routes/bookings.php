@@ -26,13 +26,19 @@ if ($method === 'POST' && $id === null) {
     if ($passenger_count < 1) $passenger_count = 1;
     if ($passenger_count > 5) $passenger_count = 5;
 
-    // Regulated fare: ₱20 per passenger
-    $fare = isset($body['fare']) && is_numeric($body['fare']) ? (float)$body['fare'] : ($passenger_count * 20.00);
+    $allowed_discounts = ['regular', 'student', 'senior', 'pwd', 'pregnant'];
+    $discount_type = isset($body['discount_type']) && in_array(strtolower($body['discount_type']), $allowed_discounts, true)
+        ? strtolower($body['discount_type'])
+        : 'regular';
+
+    // Regulated fare: ₱20 base, ₱16 (20% OFF) for student, senior, pwd, pregnant
+    $rate = ($discount_type !== 'regular') ? 16.00 : 20.00;
+    $fare = isset($body['fare']) && is_numeric($body['fare']) ? (float)$body['fare'] : ($passenger_count * $rate);
 
     $db = get_db();
     $stmt = $db->prepare(
-        'INSERT INTO bookings (passenger_id, pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng, passenger_count, fare)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        'INSERT INTO bookings (passenger_id, pickup_address, pickup_lat, pickup_lng, dropoff_address, dropoff_lat, dropoff_lng, passenger_count, fare, discount_type)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
     );
     $stmt->execute([
         $user['id'],
@@ -44,9 +50,15 @@ if ($method === 'POST' && $id === null) {
         $body['dropoff_lng'],
         $passenger_count,
         $fare,
+        $discount_type,
     ]);
 
-    json_success(['booking_id' => (int)$db->lastInsertId(), 'passenger_count' => $passenger_count, 'fare' => $fare], 'Booking created', 201);
+    json_success([
+        'booking_id'      => (int)$db->lastInsertId(),
+        'passenger_count' => $passenger_count,
+        'fare'            => $fare,
+        'discount_type'   => $discount_type
+    ], 'Booking created', 201);
 
 // GET /bookings
 } elseif ($method === 'GET' && $id === null) {

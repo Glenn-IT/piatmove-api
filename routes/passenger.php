@@ -17,6 +17,7 @@ if ($method === 'GET' && $action === 'history') {
          FROM bookings b
          LEFT JOIN users d ON d.id = b.driver_id
          WHERE b.passenger_id = ?
+           AND b.status IN (\'completed\', \'cancelled\')
          ORDER BY b.created_at DESC'
     );
     $stmt->execute([$user['id']]);
