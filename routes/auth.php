@@ -61,11 +61,20 @@ if ($method === 'POST' && $action === 'register') {
             $photo_path          = null;
             $tricycle_photo_path = null;
 
-            $adminUploadRoot = __DIR__ . '/../../PiatMoveAdmin/uploads/drivers';
-            $apiUploadRoot   = __DIR__ . '/../uploads/drivers';
-            $uploadTarget    = is_dir(dirname($adminUploadRoot)) ? $adminUploadRoot : $apiUploadRoot;
-            if (!is_dir($uploadTarget)) {
-                @mkdir($uploadTarget, 0755, true);
+            $apiUploadRoot = __DIR__ . '/../uploads/drivers';
+            if (!is_dir($apiUploadRoot)) {
+                @mkdir($apiUploadRoot, 0755, true);
+            }
+
+            // Potential admin upload folders on Hostinger (public_html/admin/...) and local XAMPP (PiatMoveAdmin/...)
+            $adminPaths = [
+                __DIR__ . '/../../admin/uploads/drivers',
+                __DIR__ . '/../../PiatMoveAdmin/uploads/drivers'
+            ];
+            foreach ($adminPaths as $admPath) {
+                if (is_dir(dirname(dirname($admPath)))) {
+                    @mkdir($admPath, 0755, true);
+                }
             }
 
             $uploadMap = [
@@ -80,12 +89,14 @@ if ($method === 'POST' && $action === 'register') {
                     $ext = strtolower(pathinfo($_FILES[$field]['name'], PATHINFO_EXTENSION));
                     if (in_array($ext, ['jpg', 'jpeg', 'png', 'pdf', 'webp'], true)) {
                         $filename = bin2hex(random_bytes(8)) . '.' . $ext;
-                        $dest = $uploadTarget . '/' . $filename;
-                        if (move_uploaded_file($_FILES[$field]['tmp_name'], $dest)) {
+                        $primaryDest = $apiUploadRoot . '/' . $filename;
+                        if (move_uploaded_file($_FILES[$field]['tmp_name'], $primaryDest)) {
                             $pathRef = 'uploads/drivers/' . $filename;
-                            if ($uploadTarget === $adminUploadRoot) {
-                                @mkdir($apiUploadRoot, 0755, true);
-                                @copy($dest, $apiUploadRoot . '/' . $filename);
+                            // Replicate to all detected admin directories
+                            foreach ($adminPaths as $admPath) {
+                                if (is_dir($admPath)) {
+                                    @copy($primaryDest, $admPath . '/' . $filename);
+                                }
                             }
                         }
                     }

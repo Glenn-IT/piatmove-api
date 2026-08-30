@@ -23,7 +23,7 @@ $driver_info = $stmt->fetch();
 if ($method === 'GET' && $action === 'profile') {
 
     $stmt = $db->prepare(
-        'SELECT u.id, u.name, u.email, u.phone, u.role, u.status AS account_status,
+        'SELECT u.id, u.name, u.email, u.phone, u.role, u.status AS account_status, u.photo_path,
                 d.license_no, d.vehicle_no, d.vehicle_type, d.barangay,
                 d.approval_status, d.is_online, d.current_lat, d.current_lng
          FROM users u
@@ -34,6 +34,50 @@ if ($method === 'GET' && $action === 'profile') {
     $profile = $stmt->fetch();
     if (!$profile) json_error('Driver profile not found', 404);
     json_success($profile);
+
+} elseif (($method === 'PUT' || $method === 'POST') && $action === 'profile') {
+
+    $body     = get_body();
+    $phone    = trim($body['phone'] ?? '');
+    $barangay = trim($body['barangay'] ?? '');
+    $curPass  = $body['current_password'] ?? '';
+    $newPass  = $body['new_password'] ?? '';
+
+    // Validate phone if provided
+    if ($phone) {
+        if (!preg_match('/^\+?[0-9\s\-]{7,15}$/', $phone)) {
+            json_error('Invalid phone number format');
+        }
+        $db->prepare('UPDATE users SET phone = ? WHERE id = ?')->execute([$phone, $user['id']]);
+    }
+
+    // Validate and update barangay if provided
+    if ($barangay) {
+        $db->prepare('UPDATE driver_info SET barangay = ? WHERE user_id = ?')->execute([$barangay, $user['id']]);
+    }
+
+    // Handle password change if requested
+    if (!empty($newPass)) {
+        if (strlen($newPass) < 6) {
+            json_error('New password must be at least 6 characters');
+        }
+        if (empty($curPass)) {
+            json_error('Current password is required to set a new password');
+        }
+
+        $uStmt = $db->prepare('SELECT password FROM users WHERE id = ?');
+        $uStmt->execute([$user['id']]);
+        $uRow = $uStmt->fetch();
+
+        if (!$uRow || !password_verify($curPass, $uRow['password'])) {
+            json_error('Current password is incorrect', 400);
+        }
+
+        $newHash = password_hash($newPass, PASSWORD_BCRYPT);
+        $db->prepare('UPDATE users SET password = ? WHERE id = ?')->execute([$newHash, $user['id']]);
+    }
+
+    json_success(null, 'Driver credentials updated successfully');
 
 } elseif ($method === 'GET' && $action === 'status') {
 
