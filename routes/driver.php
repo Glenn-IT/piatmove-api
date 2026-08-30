@@ -23,7 +23,8 @@ $driver_info = $stmt->fetch();
 if ($method === 'GET' && $action === 'profile') {
 
     $stmt = $db->prepare(
-        'SELECT u.id, u.name, u.email, u.phone, u.role, u.status AS account_status, u.photo_path,
+        'SELECT u.id, u.name, u.email, u.phone, u.role, u.status AS account_status,
+                COALESCE(u.photo_path, d.photo_path) AS photo_path,
                 d.license_no, d.vehicle_no, d.vehicle_type, d.barangay,
                 d.approval_status, d.is_online, d.current_lat, d.current_lng
          FROM users u

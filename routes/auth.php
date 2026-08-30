@@ -108,6 +108,10 @@ if ($method === 'POST' && $action === 'register') {
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $stmt->execute([$user_id, $license, $vehicle_no, $vehicle_type, $barangay, $plate_proof_path, $license_proof_path, $photo_path, $tricycle_photo_path, 'pending']);
+
+            if ($photo_path) {
+                $db->prepare('UPDATE users SET photo_path = ? WHERE id = ?')->execute([$photo_path, $user_id]);
+            }
         }
 
         $db->commit();
@@ -117,20 +121,20 @@ if ($method === 'POST' && $action === 'register') {
     }
 
     $token = jwt_create(['id' => $user_id, 'role' => $role, 'type' => 'user']);
-    json_success(['token' => $token, 'user_id' => $user_id, 'role' => $role, 'approval_status' => ($role === 'driver' ? 'pending' : 'approved')], 'Registered successfully', 201);
+    json_success(['token' => $token, 'user_id' => $user_id, 'role' => $role, 'approval_status' => ($role === 'driver' ? 'pending' : 'approved'), 'photo_path' => $photo_path], 'Registered successfully', 201);
 
-} elseif ($method === 'POST' && $action === 'login') {
+} elseif ($method === 'POST' && in_array($action, ['login'], true)) {
 
     $body  = get_body();
-    $email = trim($body['email']    ?? '');
-    $pass  =      $body['password'] ?? '';
+    $email = trim($body['email'] ?? '');
+    $pass  = $body['password']   ?? '';
 
     if (!$email || !$pass) {
-        json_error('Email and password are required');
+        json_error('email and password are required');
     }
 
     $db   = get_db();
-    $stmt = $db->prepare('SELECT u.id, u.name, u.email, u.phone, u.password, u.role, u.status, u.photo_path, d.approval_status FROM users u LEFT JOIN driver_info d ON d.user_id = u.id WHERE u.email = ?');
+    $stmt = $db->prepare('SELECT u.id, u.name, u.email, u.phone, u.password, u.role, u.status, COALESCE(u.photo_path, d.photo_path) AS photo_path, d.approval_status FROM users u LEFT JOIN driver_info d ON d.user_id = u.id WHERE u.email = ?');
     $stmt->execute([$email]);
     $user = $stmt->fetch();
 
