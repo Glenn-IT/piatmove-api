@@ -1,7 +1,12 @@
 <?php
 // GET  /driver/requests
+// GET  /driver/history
+// GET  /driver/reports
+// GET  /driver/daily-income
+// GET  /driver/trips
 // POST /driver/accept/{id}
 // POST /driver/reject/{id}
+// POST /driver/cancel/{id}
 // POST /driver/start/{id}
 // POST /driver/complete/{id}
 // PUT  /driver/location
@@ -120,6 +125,106 @@ if ($method === 'GET' && $action === 'profile') {
         $stmt->execute(['pending']);
         json_success($stmt->fetchAll());
 
+    } elseif ($method === 'GET' && $action === 'history') {
+
+        $stmt = $db->prepare(
+            'SELECT b.*,
+                    u.name  AS passenger_name,
+                    u.phone AS passenger_phone
+             FROM bookings b
+             LEFT JOIN users u ON u.id = b.passenger_id
+             WHERE b.driver_id = ?
+               AND b.status IN (\'completed\', \'cancelled\', \'rejected\')
+             ORDER BY b.created_at DESC'
+        );
+        $stmt->execute([$user['id']]);
+        json_success(array_values($stmt->fetchAll()));
+
+    } elseif ($method === 'GET' && ($action === 'reports' || $action === 'daily-income')) {
+
+        $date = $_GET['date'] ?? date('Y-m-d');
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+            $date = date('Y-m-d');
+        }
+
+        $stmt = $db->prepare(
+            'SELECT b.*,
+                    u.name  AS passenger_name,
+                    u.phone AS passenger_phone
+             FROM bookings b
+             LEFT JOIN users u ON u.id = b.passenger_id
+             WHERE b.driver_id = ?
+               AND b.status = \'completed\'
+               AND (DATE(b.created_at) = ? OR DATE(b.updated_at) = ?)
+             ORDER BY b.created_at DESC'
+        );
+        $stmt->execute([$user['id'], $date, $date]);
+        $trips = $stmt->fetchAll();
+
+        $total_income = 0.0;
+        $regular_trips = 0;
+        $discounted_trips = 0;
+        $student_trips = 0;
+        $senior_trips = 0;
+        $pwd_trips = 0;
+        $pregnant_trips = 0;
+
+        foreach ($trips as $t) {
+            $fare = (float)($t['fare'] ?? 0);
+            $total_income += $fare;
+            $d = strtolower($t['discount_type'] ?? 'regular');
+            if ($d === 'regular' || empty($d)) {
+                $regular_trips++;
+            } else {
+                $discounted_trips++;
+                if ($d === 'student') $student_trips++;
+                elseif ($d === 'senior') $senior_trips++;
+                elseif ($d === 'pwd') $pwd_trips++;
+                elseif ($d === 'pregnant') $pregnant_trips++;
+            }
+        }
+
+        json_success([
+            'date'              => $date,
+            'total_income'      => round($total_income, 2),
+            'total_trips'       => count($trips),
+            'regular_trips'     => $regular_trips,
+            'discounted_trips'  => $discounted_trips,
+            'student_trips'     => $student_trips,
+            'senior_trips'      => $senior_trips,
+            'pwd_trips'         => $pwd_trips,
+            'pregnant_trips'    => $pregnant_trips,
+            'trips'             => array_values($trips)
+        ]);
+
+    } elseif ($method === 'GET' && $action === 'trips') {
+
+        $status = $_GET['status'] ?? 'all';
+        if ($status !== 'all') {
+            $stmt = $db->prepare(
+                'SELECT b.*,
+                        u.name  AS passenger_name,
+                        u.phone AS passenger_phone
+                 FROM bookings b
+                 LEFT JOIN users u ON u.id = b.passenger_id
+                 WHERE b.driver_id = ? AND b.status = ?
+                 ORDER BY b.created_at DESC'
+            );
+            $stmt->execute([$user['id'], $status]);
+        } else {
+            $stmt = $db->prepare(
+                'SELECT b.*,
+                        u.name  AS passenger_name,
+                        u.phone AS passenger_phone
+                 FROM bookings b
+                 LEFT JOIN users u ON u.id = b.passenger_id
+                 WHERE b.driver_id = ?
+                 ORDER BY b.created_at DESC'
+            );
+            $stmt->execute([$user['id']]);
+        }
+        json_success(array_values($stmt->fetchAll()));
+
     } elseif ($method === 'POST' && $action === 'accept' && $id) {
 
         $stmt = $db->prepare(
@@ -163,16 +268,26 @@ if ($method === 'GET' && $action === 'profile') {
 
         json_success(null, 'Ride accepted');
 
-
     } elseif ($method === 'POST' && $action === 'reject' && $id) {
 
-        $stmt = $db->prepare("SELECT id FROM bookings WHERE id = ? AND driver_id = ? AND status = 'accepted'");
+        $stmt = $db->prepare("SELECT id, status, driver_id FROM bookings WHERE id = ? AND (driver_id = ? OR status = 'pending')");
         $stmt->execute([$id, $user['id']]);
-        if (!$stmt->fetch()) json_error('Booking not found', 404);
+        $booking = $stmt->fetch();
+        if (!$booking) json_error('Booking not found or cannot be rejected', 404);
 
-        $db->prepare("UPDATE bookings SET status = 'rejected', driver_id = NULL WHERE id = ?")
-           ->execute([$id]);
+        $db->prepare("UPDATE bookings SET status = 'rejected', driver_id = ? WHERE id = ?")
+           ->execute([$user['id'], $id]);
         json_success(null, 'Ride rejected');
+
+    } elseif ($method === 'POST' && $action === 'cancel' && $id) {
+
+        $stmt = $db->prepare("SELECT id, status, driver_id FROM bookings WHERE id = ? AND driver_id = ? AND status IN ('accepted', 'started')");
+        $stmt->execute([$id, $user['id']]);
+        $booking = $stmt->fetch();
+        if (!$booking) json_error('Booking not found or cannot be cancelled', 404);
+
+        $db->prepare("UPDATE bookings SET status = 'cancelled' WHERE id = ?")->execute([$id]);
+        json_success(null, 'Ride cancelled');
 
     } elseif ($method === 'POST' && $action === 'start' && $id) {
 
