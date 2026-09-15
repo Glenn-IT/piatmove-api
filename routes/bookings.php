@@ -104,10 +104,15 @@ if ($method === 'POST' && $id === null) {
                 p.name  AS passenger_name,
                 p.phone AS passenger_phone,
                 d.name  AS driver_name,
-                d.phone AS driver_phone
+                d.phone AS driver_phone,
+                di.vehicle_no   AS driver_vehicle_no,
+                di.vehicle_type AS driver_vehicle_type,
+                di.current_lat  AS driver_lat,
+                di.current_lng  AS driver_lng
          FROM bookings b
          JOIN users p  ON p.id = b.passenger_id
          LEFT JOIN users d ON d.id = b.driver_id
+         LEFT JOIN driver_info di ON di.user_id = b.driver_id
          WHERE b.id = ?'
     );
     $stmt->execute([$id]);
@@ -117,6 +122,8 @@ if ($method === 'POST' && $id === null) {
     if ((int)$booking['passenger_id'] !== $user['id'] && (int)$booking['driver_id'] !== $user['id']) {
         json_error('Forbidden', 403);
     }
+    if ($booking['driver_lat'] !== null) $booking['driver_lat'] = (float)$booking['driver_lat'];
+    if ($booking['driver_lng'] !== null) $booking['driver_lng'] = (float)$booking['driver_lng'];
     json_success($booking);
 
 // POST /bookings/{id}/cancel
