@@ -31,7 +31,9 @@ if ($method === 'GET' && $action === 'profile') {
         'SELECT u.id, u.name, u.email, u.phone, u.role, u.status AS account_status,
                 COALESCE(u.photo_path, d.photo_path) AS photo_path,
                 d.license_no, d.vehicle_no, d.vehicle_type, d.barangay,
-                d.approval_status, d.is_online, d.current_lat, d.current_lng
+                d.approval_status, d.is_online, d.current_lat, d.current_lng,
+                COALESCE((SELECT ROUND(AVG(rating), 1) FROM bookings WHERE driver_id = u.id AND rating IS NOT NULL), 5.0) AS rating,
+                (SELECT COUNT(rating) FROM bookings WHERE driver_id = u.id AND rating IS NOT NULL) AS rating_count
          FROM users u
          JOIN driver_info d ON d.user_id = u.id
          WHERE u.id = ?'

@@ -145,6 +145,49 @@ if ($method === 'POST' && $id === null) {
     $db->prepare('UPDATE bookings SET status = ? WHERE id = ?')->execute(['cancelled', $id]);
     json_success(null, 'Booking cancelled');
 
+// POST /bookings/{id}/rate
+} elseif ($method === 'POST' && $id !== null && $action === 'rate') {
+
+    $user = require_auth();
+    require_role($user, 'passenger');
+    $db   = get_db();
+
+    $stmt = $db->prepare('SELECT * FROM bookings WHERE id = ? AND passenger_id = ?');
+    $stmt->execute([$id, $user['id']]);
+    $booking = $stmt->fetch();
+
+    if (!$booking) json_error('Booking not found', 404);
+    if ($booking['status'] !== 'completed') {
+        json_error('You can only rate completed rides', 400);
+    }
+    if (!empty($booking['rating'])) {
+        json_error('This ride has already been rated', 400);
+    }
+
+    $body    = get_body();
+    $rating  = isset($body['rating']) ? (int)$body['rating'] : 0;
+    $comment = isset($body['comment']) ? trim($body['comment']) : null;
+
+    if ($rating < 1 || $rating > 5) {
+        json_error('Rating must be between 1 and 5 stars', 400);
+    }
+
+    if ($comment !== null && mb_strlen($comment) > 255) {
+        $comment = mb_substr($comment, 0, 255);
+    }
+
+    $updateStmt = $db->prepare(
+        'UPDATE bookings SET rating = ?, rating_comment = ?, rated_at = NOW() WHERE id = ?'
+    );
+    $updateStmt->execute([$rating, $comment, $id]);
+
+    json_success([
+        'booking_id' => $id,
+        'rating'     => $rating,
+        'comment'    => $comment
+    ], 'Thank you for rating your driver!');
+
 } else {
     json_error('Not found', 404);
 }
+
