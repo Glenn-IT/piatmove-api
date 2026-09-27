@@ -311,3 +311,308 @@ HTML;
 
     return send_smtp_email($passengerEmail, $passengerName, $subject, $html);
 }
+
+/**
+ * Sends a welcome onboarding email to a newly registered passenger.
+ */
+function send_passenger_welcome_email(string $toEmail, string $userName, string $phone): array {
+    $subject = "🛺 Welcome to PiatMove - Your Commuter Account is Ready!";
+    $safeName = htmlspecialchars($userName ?: 'Commuter', ENT_QUOTES, 'UTF-8');
+    $safeEmail = htmlspecialchars($toEmail, ENT_QUOTES, 'UTF-8');
+    $safePhone = htmlspecialchars($phone ?: 'N/A', ENT_QUOTES, 'UTF-8');
+
+    $html = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Welcome to PiatMove</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 540px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center;">
+              <h1 style="margin: 0; font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">🛺 Welcome to PiatMove!</h1>
+              <p style="margin: 6px 0 0 0; color: #d1fae5; font-size: 14px; font-weight: 500;">Tricycle Transport Hailing in Piat, Cagayan</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px 26px;">
+              <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #334155;">
+                Hello <strong>{$safeName}</strong>,<br>
+                Thank you for signing up for <strong>PiatMove</strong>. Your commuter account is officially registered and ready to use!
+              </p>
+
+              <!-- Account Summary Box -->
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin: 20px 0;">
+                <h3 style="margin: 0 0 12px 0; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; color: #047857;">Your Account Details</h3>
+                <table width="100%" cellspacing="0" cellpadding="5" style="font-size: 14px; color: #334155;">
+                  <tr>
+                    <td width="35%" style="color: #64748b;">Full Name:</td>
+                    <td style="font-weight: 600;">{$safeName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b;">Email Address:</td>
+                    <td style="font-weight: 600;">{$safeEmail}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b;">Mobile Number:</td>
+                    <td style="font-weight: 600;">{$safePhone}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b;">Account Status:</td>
+                    <td><span style="display: inline-block; background-color: #dcfce7; color: #15803d; font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 999px;">✓ Active</span></td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Fare Guidelines -->
+              <div style="background-color: #f0fdf4; border-left: 4px solid #10b981; border-radius: 0 8px 8px 0; padding: 14px 18px; margin-bottom: 24px;">
+                <h4 style="margin: 0 0 6px 0; font-size: 14px; color: #166534;">💡 Municipal Fare & Discount Guidelines</h4>
+                <p style="margin: 0 0 6px 0; font-size: 13px; line-height: 1.5; color: #15803d;">
+                  • <strong>Standard Base Fare:</strong> ₱20.00 per passenger.<br>
+                  • <strong>Statutory 20% Discount (₱16.00):</strong> Students, Senior Citizens, PWDs, and Pregnant commuters.
+                </p>
+                <p style="margin: 0; font-size: 12px; color: #166534; font-style: italic;">
+                  * Please present your valid physical ID or document to the driver upon boarding when availing of discounted fares.
+                </p>
+              </div>
+
+              <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #475569;">
+                You can now log in to the <strong>PiatMove Passenger App</strong>, set your pickup location using the interactive map or municipal landmarks, and hail a ride with guaranteed fare transparency.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 20px 24px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
+              &copy; 2026 PiatMove Transport Service. All rights reserved.<br>
+              Municipality of Piat, Cagayan, Philippines
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+HTML;
+
+    return send_smtp_email($toEmail, $userName, $subject, $html);
+}
+
+/**
+ * Sends an application receipt confirmation email to a newly registered driver.
+ */
+function send_driver_registration_email(
+    string $toEmail,
+    string $userName,
+    string $licenseNo,
+    string $vehicleNo,
+    string $barangay
+): array {
+    $subject = "🛺 PiatMove Driver Application Received - Pending Verification";
+    $safeName = htmlspecialchars($userName ?: 'Driver Applicant', ENT_QUOTES, 'UTF-8');
+    $safeEmail = htmlspecialchars($toEmail, ENT_QUOTES, 'UTF-8');
+    $safeLicense = htmlspecialchars($licenseNo ?: 'N/A', ENT_QUOTES, 'UTF-8');
+    $safeVehicle = htmlspecialchars($vehicleNo ?: 'N/A', ENT_QUOTES, 'UTF-8');
+    $safeBrgy = htmlspecialchars($barangay ?: 'Piat', ENT_QUOTES, 'UTF-8');
+
+    $html = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Driver Application Received</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 540px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #1e3a8a 0%, #2563eb 100%); padding: 32px 24px; text-align: center;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">🛺 Driver Registration Received</h1>
+              <p style="margin: 6px 0 0 0; color: #bfdbfe; font-size: 14px;">Piat Municipal Tricycle Transport Network</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px 26px;">
+              <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #334155;">
+                Hello <strong>{$safeName}</strong>,<br>
+                Thank you for applying to be an official tricycle driver on <strong>PiatMove</strong>. We have successfully received your registration and uploaded compliance documents.
+              </p>
+
+              <!-- Application Status Badge -->
+              <div style="background-color: #fefce8; border: 1px solid #fef08a; border-radius: 12px; padding: 16px; text-align: center; margin: 20px 0;">
+                <span style="font-size: 13px; font-weight: 700; color: #854d0e; text-transform: uppercase; letter-spacing: 0.5px;">Application Status</span>
+                <div style="font-size: 20px; font-weight: 800; color: #a16207; margin-top: 4px;">⏳ Pending Admin Approval</div>
+              </div>
+
+              <!-- Details Box -->
+              <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 18px; margin-bottom: 22px;">
+                <h3 style="margin: 0 0 12px 0; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; color: #1e40af;">Submitted Vehicle & Driver Profile</h3>
+                <table width="100%" cellspacing="0" cellpadding="5" style="font-size: 14px; color: #334155;">
+                  <tr>
+                    <td width="38%" style="color: #64748b;">Driver Name:</td>
+                    <td style="font-weight: 600;">{$safeName}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b;">License Number:</td>
+                    <td style="font-weight: 600;">{$safeLicense}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b;">Franchise / Plate No:</td>
+                    <td style="font-weight: 600;">{$safeVehicle}</td>
+                  </tr>
+                  <tr>
+                    <td style="color: #64748b;">Home Barangay:</td>
+                    <td style="font-weight: 600;">{$safeBrgy}, Piat</td>
+                  </tr>
+                </table>
+              </div>
+
+              <!-- Next Steps Notice -->
+              <div style="background-color: #eff6ff; border-left: 4px solid #3b82f6; border-radius: 0 8px 8px 0; padding: 14px 18px; margin-bottom: 22px;">
+                <h4 style="margin: 0 0 6px 0; font-size: 14px; color: #1e40af;">📋 What Happens Next?</h4>
+                <p style="margin: 0; font-size: 13px; line-height: 1.5; color: #1d4ed8;">
+                  Our municipal administrators are verifying your 4 compliance documents (Selfie, Driver's License, Plate/Franchise Proof, and Tricycle Photo). Once verified, you will receive an approval email and you will be able to toggle <strong>"Go Online"</strong> in your Driver App to start receiving passenger bookings.
+                </p>
+              </div>
+
+              <p style="margin: 0; font-size: 13px; color: #64748b;">
+                If you have any questions or need to update your documents, please coordinate with your local TODA or municipal transport regulatory office.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 20px 24px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
+              &copy; 2026 PiatMove Transport Service. All rights reserved.<br>
+              Municipality of Piat, Cagayan, Philippines
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+HTML;
+
+    return send_smtp_email($toEmail, $userName, $subject, $html);
+}
+
+/**
+ * Sends a notification email when a driver application is approved or rejected by the admin.
+ */
+function send_driver_status_update_email(
+    string $toEmail,
+    string $userName,
+    string $status,
+    string $vehicleNo = ''
+): array {
+    $isApproved = ($status === 'approved');
+    $subject = $isApproved
+        ? "✅ Great News! Your PiatMove Driver Account is Approved"
+        : "⚠️ PiatMove Driver Application Status Update";
+
+    $safeName = htmlspecialchars($userName ?: 'Driver', ENT_QUOTES, 'UTF-8');
+    $safeVehicle = htmlspecialchars($vehicleNo ?: 'Tricycle', ENT_QUOTES, 'UTF-8');
+
+    $headerBg = $isApproved ? 'linear-gradient(135deg, #059669 0%, #10b981 100%)' : 'linear-gradient(135deg, #dc2626 0%, #ef4444 100%)';
+    $statusText = $isApproved ? 'APPROVED' : 'NEEDS ATTENTION';
+    $statusBadgeBg = $isApproved ? '#dcfce7' : '#fee2e2';
+    $statusTextColor = $isApproved ? '#15803d' : '#b91c1c';
+
+    $bodyMessage = $isApproved
+        ? "We are thrilled to inform you that your driver compliance documents have been verified and approved by the municipal transport administrator! Your tricycle unit (<strong>{$safeVehicle}</strong>) is officially registered in our active dispatch fleet."
+        : "Your driver application was reviewed by the municipal transport administrator and requires further review or document re-submission. Please ensure your driver's license and vehicle franchise documents are clear and valid.";
+
+    $ctaSection = $isApproved
+        ? <<<CTA
+        <div style="background-color: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 12px; padding: 18px; margin: 24px 0; text-align: center;">
+          <p style="margin: 0 0 10px 0; font-size: 15px; font-weight: 700; color: #166534;">You are now ready to hit the road!</p>
+          <p style="margin: 0; font-size: 13px; color: #15803d; line-height: 1.5;">
+            1. Open the <strong>PiatMove Driver App</strong>.<br>
+            2. Log in with your email and password.<br>
+            3. Toggle the <strong>"Go Online"</strong> switch to start receiving ride requests from nearby commuters.
+          </p>
+        </div>
+CTA
+        : <<<CTA
+        <div style="background-color: #fff1f2; border: 1px solid #fecdd3; border-radius: 12px; padding: 18px; margin: 24px 0;">
+          <p style="margin: 0; font-size: 13px; color: #9f1239; line-height: 1.5;">
+            Please coordinate with your TODA officer or visit the municipal hall with your physical LTO driver's license and municipal franchise papers for manual verification.
+          </p>
+        </div>
+CTA;
+
+    $html = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Driver Account Status</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 540px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+          <!-- Header -->
+          <tr>
+            <td style="background: {$headerBg}; padding: 32px 24px; text-align: center;">
+              <h1 style="margin: 0; font-size: 24px; font-weight: 800; color: #ffffff;">🛺 PiatMove Driver Status</h1>
+              <p style="margin: 6px 0 0 0; color: #ffffff; opacity: 0.9; font-size: 14px;">Municipal Transport Compliance</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding: 32px 26px;">
+              <p style="margin: 0 0 16px 0; font-size: 15px; line-height: 1.6; color: #334155;">
+                Hello <strong>{$safeName}</strong>,
+              </p>
+
+              <!-- Status Pill -->
+              <div style="text-align: center; margin: 20px 0;">
+                <span style="display: inline-block; background-color: {$statusBadgeBg}; color: {$statusTextColor}; font-size: 14px; font-weight: 800; padding: 6px 18px; border-radius: 999px; letter-spacing: 0.5px;">
+                  {$statusText}
+                </span>
+              </div>
+
+              <p style="margin: 0 0 16px 0; font-size: 14px; line-height: 1.6; color: #475569;">
+                {$bodyMessage}
+              </p>
+
+              {$ctaSection}
+
+              <p style="margin: 0; font-size: 12px; color: #94a3b8; text-align: center;">
+                Drive safely and obey municipal traffic rules in Piat!
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 20px 24px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
+              &copy; 2026 PiatMove Transport Service. All rights reserved.<br>
+              Municipality of Piat, Cagayan, Philippines
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+HTML;
+
+    return send_smtp_email($toEmail, $userName, $subject, $html);
+}

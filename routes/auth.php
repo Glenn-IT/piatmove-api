@@ -115,6 +115,18 @@ if ($method === 'POST' && $action === 'register') {
         }
 
         $db->commit();
+
+        // Dispatch Welcome / Application Confirmation Email (non-blocking for registration success)
+        try {
+            require_once __DIR__ . '/../helpers/mail.php';
+            if ($role === 'passenger') {
+                send_passenger_welcome_email($email, $name, $phone);
+            } else {
+                send_driver_registration_email($email, $name, $license ?? '', $vehicle_no ?? '', $barangay ?? '');
+            }
+        } catch (Throwable $mailEx) {
+            error_log("[Registration Mail Warning] Failed to send registration email to {$email}: " . $mailEx->getMessage());
+        }
     } catch (Exception $e) {
         $db->rollBack();
         json_error('Registration failed', 500);
