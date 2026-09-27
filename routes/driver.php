@@ -144,6 +144,7 @@ if ($method === 'GET' && $action === 'profile') {
 
     } elseif ($method === 'GET' && ($action === 'reports' || $action === 'daily-income')) {
 
+        date_default_timezone_set('Asia/Manila');
         $date = $_GET['date'] ?? date('Y-m-d');
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
             $date = date('Y-m-d');
@@ -157,10 +158,10 @@ if ($method === 'GET' && $action === 'profile') {
              LEFT JOIN users u ON u.id = b.passenger_id
              WHERE b.driver_id = ?
                AND b.status = \'completed\'
-               AND (DATE(b.created_at) = ? OR DATE(b.updated_at) = ?)
+               AND (DATE(b.created_at) = ? OR DATE(b.updated_at) = ? OR DATE(b.rated_at) = ?)
              ORDER BY b.created_at DESC'
         );
-        $stmt->execute([$user['id'], $date, $date]);
+        $stmt->execute([$user['id'], $date, $date, $date]);
         $trips = $stmt->fetchAll();
 
         $total_income = 0.0;
@@ -171,9 +172,11 @@ if ($method === 'GET' && $action === 'profile') {
         $pwd_trips = 0;
         $pregnant_trips = 0;
 
-        foreach ($trips as $t) {
+        foreach ($trips as &$t) {
             $fare = (float)($t['fare'] ?? 0);
             $total_income += $fare;
+            $t['fare'] = $fare;
+            $t['passenger_count'] = (int)($t['passenger_count'] ?? 1);
             $d = strtolower($t['discount_type'] ?? 'regular');
             if ($d === 'regular' || empty($d)) {
                 $regular_trips++;
@@ -185,6 +188,7 @@ if ($method === 'GET' && $action === 'profile') {
                 elseif ($d === 'pregnant') $pregnant_trips++;
             }
         }
+        unset($t);
 
         json_success([
             'date'              => $date,

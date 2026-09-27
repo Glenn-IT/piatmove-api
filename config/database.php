@@ -1,4 +1,6 @@
 <?php
+date_default_timezone_set('Asia/Manila');
+
 define('DB_HOST',    getenv('DB_HOST') ?: 'localhost');
 define('DB_NAME',    getenv('DB_NAME') ?: 'piatmove');
 define('DB_USER',    getenv('DB_USER') ?: 'root');
@@ -18,6 +20,11 @@ function get_db(): PDO {
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES   => false,
         ]);
+        try {
+            $pdo->exec("SET time_zone = '+08:00'");
+        } catch (Throwable $e) {
+            // Silently fallback if host restricts timezone query
+        }
     }
     return $pdo;
 }
