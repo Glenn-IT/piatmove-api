@@ -206,6 +206,72 @@ HTML;
 }
 
 /**
+ * Sends a registration OTP verification code email with PiatMove branding.
+ */
+function send_registration_otp_email(string $toEmail, string $userName, string $otp, string $role = 'passenger'): array {
+    $roleTitle = ($role === 'driver') ? 'Driver' : 'Passenger';
+    $subject = "🛺 PiatMove - Registration Verification Code: {$otp}";
+    $safeName = htmlspecialchars($userName ?: 'Valued User', ENT_QUOTES, 'UTF-8');
+    $safeOtp = htmlspecialchars($otp, ENT_QUOTES, 'UTF-8');
+    $safeRole = htmlspecialchars($roleTitle, ENT_QUOTES, 'UTF-8');
+
+    $html = <<<HTML
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Verify Your Email</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f1f5f9; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; color: #1e293b;">
+  <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f1f5f9; padding: 40px 15px;">
+    <tr>
+      <td align="center">
+        <table role="presentation" width="100%" style="max-width: 520px; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05);">
+          <!-- Header -->
+          <tr>
+            <td style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center;">
+              <h1 style="margin: 0; font-size: 26px; font-weight: 800; color: #ffffff; letter-spacing: -0.5px;">🛺 PiatMove</h1>
+              <p style="margin: 6px 0 0 0; color: #d1fae5; font-size: 14px; font-weight: 500;">Piat Tricycle Booking Service</p>
+            </td>
+          </tr>
+          <!-- Body -->
+          <tr>
+            <td style="padding: 36px 28px;">
+              <h2 style="margin: 0 0 12px 0; font-size: 20px; font-weight: 700; color: #0f172a;">Welcome to PiatMove!</h2>
+              <p style="margin: 0 0 20px 0; font-size: 15px; line-height: 1.6; color: #475569;">
+                Hello <strong>{$safeName}</strong>,<br>
+                Thank you for signing up as a <strong>{$safeRole}</strong>. To complete your registration and verify your email, enter the 6-digit verification code below:
+              </p>
+
+              <!-- OTP Box -->
+              <div style="background-color: #f8fafc; border: 2px dashed #10b981; border-radius: 12px; padding: 20px; text-align: center; margin: 24px 0;">
+                <span style="font-size: 36px; font-weight: 800; letter-spacing: 8px; color: #047857; display: inline-block;">{$safeOtp}</span>
+              </div>
+
+              <p style="margin: 0 0 12px 0; font-size: 13px; line-height: 1.5; color: #64748b;">
+                ⏱️ This verification code is valid for <strong>15 minutes</strong>. If you did not attempt to register on PiatMove, you can safely ignore this email.
+              </p>
+            </td>
+          </tr>
+          <!-- Footer -->
+          <tr>
+            <td style="background-color: #f8fafc; padding: 20px 24px; text-align: center; border-top: 1px solid #e2e8f0; font-size: 12px; color: #94a3b8;">
+              &copy; 2026 PiatMove Transport. All rights reserved.<br>
+              Municipality of Piat, Cagayan, Philippines
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
+HTML;
+
+    return send_smtp_email($toEmail, $userName, $subject, $html);
+}
+
+/**
  * Sends a booking accepted notification email to the passenger.
  */
 function send_booking_accepted_email(

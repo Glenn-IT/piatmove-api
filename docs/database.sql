@@ -88,6 +88,20 @@ CREATE TABLE admins (
 ) ENGINE=InnoDB;
 
 -- --------------------------------------------------------
+-- Table: registration_otps
+-- Temporary 6-digit OTP verification codes for user registration
+-- --------------------------------------------------------
+CREATE TABLE IF NOT EXISTS registration_otps (
+    id          INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    email       VARCHAR(150) NOT NULL,
+    otp         VARCHAR(10)  NOT NULL,
+    role        VARCHAR(20)  DEFAULT 'passenger',
+    expires_at  DATETIME     NOT NULL,
+    created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_reg_email_otp (email, otp)
+) ENGINE=InnoDB;
+
+-- --------------------------------------------------------
 -- Table: password_resets
 -- Temporary 6-digit OTP verification codes for forgot password
 -- --------------------------------------------------------

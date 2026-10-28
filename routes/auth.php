@@ -13,6 +13,7 @@ if ($method === 'POST' && $action === 'register') {
     $pass  =      $body['password'] ?? '';
     $phone = trim($body['phone']    ?? '');
     $role  =      $body['role']     ?? 'passenger';
+    $otp   = trim($body['otp']      ?? '');
 
     if (!$name || !$email || !$pass || !$phone) {
         json_error('name, email, password and phone are required');
@@ -29,13 +30,34 @@ if ($method === 'POST' && $action === 'register') {
     if (!in_array($role, ['passenger', 'driver'], true)) {
         json_error('role must be passenger or driver');
     }
+    if (!$otp) {
+        json_error('Verification code (OTP) is required', 400);
+    }
 
     $db = get_db();
+
+    // Auto-create registration_otps table if not exists
+    $db->exec("CREATE TABLE IF NOT EXISTS registration_otps (
+        id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        email      VARCHAR(150) NOT NULL,
+        otp        VARCHAR(10)  NOT NULL,
+        role       VARCHAR(20)  DEFAULT 'passenger',
+        expires_at DATETIME     NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_reg_email_otp (email, otp)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
 
     $stmt = $db->prepare('SELECT id FROM users WHERE email = ?');
     $stmt->execute([$email]);
     if ($stmt->fetch()) {
         json_error('Email already registered', 409);
+    }
+
+    // Verify OTP first before creating any user data
+    $stmt = $db->prepare('SELECT id FROM registration_otps WHERE email = ? AND otp = ? AND expires_at >= NOW() ORDER BY id DESC LIMIT 1');
+    $stmt->execute([$email, $otp]);
+    if (!$stmt->fetch()) {
+        json_error('Invalid or expired verification code. Please request a new code.', 400);
     }
 
     $db->beginTransaction();
@@ -114,6 +136,9 @@ if ($method === 'POST' && $action === 'register') {
             }
         }
 
+        // Clean up verified OTP
+        $db->prepare('DELETE FROM registration_otps WHERE email = ?')->execute([$email]);
+
         $db->commit();
 
         // Dispatch Welcome / Application Confirmation Email (non-blocking for registration success)
@@ -134,6 +159,83 @@ if ($method === 'POST' && $action === 'register') {
 
     $token = jwt_create(['id' => $user_id, 'role' => $role, 'type' => 'user']);
     json_success(['token' => $token, 'user_id' => $user_id, 'role' => $role, 'approval_status' => ($role === 'driver' ? 'pending' : 'approved'), 'photo_path' => $photo_path], 'Registered successfully', 201);
+
+} elseif ($method === 'POST' && in_array($action, ['send-registration-otp', 'send-otp', 'request-registration-otp'], true)) {
+
+    $body  = get_body();
+    $email = trim($body['email'] ?? '');
+    $name  = trim($body['name']  ?? 'User');
+    $role  = trim($body['role']  ?? 'passenger');
+
+    if (!$email) {
+        json_error('Email is required');
+    }
+    if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+        json_error('Invalid email address');
+    }
+
+    $db = get_db();
+
+    // Auto-create registration_otps table if not exists
+    $db->exec("CREATE TABLE IF NOT EXISTS registration_otps (
+        id         INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        email      VARCHAR(150) NOT NULL,
+        otp        VARCHAR(10)  NOT NULL,
+        role       VARCHAR(20)  DEFAULT 'passenger',
+        expires_at DATETIME     NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_reg_email_otp (email, otp)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci");
+
+    // Check if email already registered in users table
+    $stmt = $db->prepare('SELECT id FROM users WHERE email = ?');
+    $stmt->execute([$email]);
+    if ($stmt->fetch()) {
+        json_error('Email is already registered. Please log in instead.', 409);
+    }
+
+    // Generate 6-digit numeric OTP
+    $otp = sprintf('%06d', mt_rand(100000, 999999));
+
+    // Clear older OTPs for this email
+    $db->prepare('DELETE FROM registration_otps WHERE email = ?')->execute([$email]);
+
+    // Store new OTP valid for 15 minutes
+    $stmt = $db->prepare('INSERT INTO registration_otps (email, otp, role, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE))');
+    $stmt->execute([$email, $otp, $role]);
+
+    // Dispatch OTP email via Gmail SMTP
+    require_once __DIR__ . '/../helpers/mail.php';
+    $mailResult = send_registration_otp_email($email, $name, $otp, $role);
+
+    if (!$mailResult['success']) {
+        error_log("[Registration OTP Error] Email to {$email} failed: " . ($mailResult['message'] ?? ''));
+        json_error('Failed to send verification email. Please check your email address or try again later.', 500);
+    }
+
+    json_success(
+        ['email' => $email],
+        'A 6-digit verification code has been sent to your email.'
+    );
+
+} elseif ($method === 'POST' && in_array($action, ['verify-registration-otp', 'verify-reg-otp'], true)) {
+
+    $body  = get_body();
+    $email = trim($body['email'] ?? '');
+    $otp   = trim($body['otp']   ?? '');
+
+    if (!$email || !$otp) {
+        json_error('Email and verification code are required');
+    }
+
+    $db   = get_db();
+    $stmt = $db->prepare('SELECT id FROM registration_otps WHERE email = ? AND otp = ? AND expires_at >= NOW() ORDER BY id DESC LIMIT 1');
+    $stmt->execute([$email, $otp]);
+    if (!$stmt->fetch()) {
+        json_error('Invalid or expired verification code', 400);
+    }
+
+    json_success(['email' => $email, 'verified' => true], 'Verification code is valid');
 
 } elseif ($method === 'POST' && in_array($action, ['login'], true)) {
 
